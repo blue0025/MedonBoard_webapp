@@ -144,94 +144,84 @@ else:
             else:
                 st.warning("No case studies available yet.")
 
-       # -------------------------------
-# ➕ ADD CASE STUDY (EXPERT ONLY)
-# -------------------------------
-elif selection == "Add Case Study" and st.session_state.role == "expert":
-    st.title("📝 Add & Classify a New Medical Note")
-    new_case_text = st.text_area("Enter full medical case note", key="expert_input")
+        # -------------------------------
+    # ➕ ADD CASE STUDY (EXPERT ONLY)
+    # -------------------------------
+    elif selection == "Add Case Study" and st.session_state.role == "expert":
+        st.title("📝 Add & Classify a New Medical Note")
+        new_case_text = st.text_area("Enter full medical case note", key="expert_input")
 
-    if st.button("Analyze and Review Entities", key="analyze_button"):
-        if new_case_text.strip():
-            input_vec = vectorizer.transform([new_case_text])
-            predicted_category = model.predict(input_vec)[0]
+        if st.button("Analyze and Review Entities", key="analyze_button"):
+            if new_case_text.strip():
+                input_vec = vectorizer.transform([new_case_text])
+                prediction = model.predict(input_vec)[0]
 
-            st.success(f"Predicted Category: **{predicted_category}**")
+                st.success(f"Predicted Category: **{prediction}**")
 
-            # Run NER
-            doc = nlp(new_case_text)
-            diseases = [ent.text for ent in doc.ents if ent.label_ == "DISEASE"]
-            symptoms = [ent.text for ent in doc.ents if ent.label_ == "SYMPTOM"]
-            medicines = [ent.text for ent in doc.ents if ent.label_ == "MEDICINE"]
+                # Apply spaCy NER
+                doc = nlp(new_case_text)
+                diseases = [ent.text for ent in doc.ents if ent.label_ == "DISEASE"]
+                symptoms = [ent.text for ent in doc.ents if ent.label_ == "SYMPTOM"]
+                medicines = [ent.text for ent in doc.ents if ent.label_ == "MEDICINE"]
 
-            # Editable review fields
-            disease_str = st.text_input("🔬 DISEASE Entities", ", ".join(diseases))
-            symptom_str = st.text_input("🤒 SYMPTOM Entities", ", ".join(symptoms))
-            medicine_str = st.text_input("💊 MEDICINE Entities", ", ".join(medicines))
+                # Editable entity fields
+                disease_str = st.text_input("🔬 DISEASE Entities", ", ".join(diseases))
+                symptom_str = st.text_input("🤒 SYMPTOM Entities", ", ".join(symptoms))
+                medicine_str = st.text_input("💊 MEDICINE Entities", ", ".join(medicines))
 
-            # Optional override category
-            final_category = st.selectbox("Select Final Category", ["Case Study", "Disease", "Medicine"], index=0)
+                # Optional developer comment field
+                dev_feedback = st.text_area("🛠 Developer Feedback (optional)", placeholder="Mention any NER errors or suggestions here...")
 
-            # Optional feedback
-            dev_feedback = st.text_area("🛠 Developer Feedback (optional)", placeholder="Mention any NER errors or suggestions...")
+                if st.button("✅ Save Entry", key="final_save"):
+                    new_record = {
+                        "text": new_case_text,
+                        "category": prediction,
+                        "diseases": disease_str,
+                        "symptoms": symptom_str,
+                        "medicines": medicine_str,
+                        "feedback": dev_feedback,
+                        "author": st.session_state.username,
+                        "timestamp": pd.Timestamp.now()
+                    }
 
-            if st.button("✅ Save Entry", key="final_save"):
-                new_records = []
+                    csv_file = "classified_data.csv"
+                    if os.path.exists(csv_file):
+                        df = pd.read_csv(csv_file)
+                        df = pd.concat([df, pd.DataFrame([new_record])], ignore_index=True)
+                        
+                        # Add individual entities as well
+                        if disease_str:
+                            for disease in disease_str.split(","):
+                                df = pd.concat([df, pd.DataFrame([{
+                                    "text": disease.strip(),
+                                    "category": "Disease",
+                                    "author": st.session_state.username,
+                                    "timestamp": pd.Timestamp.now()
+                                }])], ignore_index=True)
+                        
+                        if symptom_str:
+                            for symptom in symptom_str.split(","):
+                                df = pd.concat([df, pd.DataFrame([{
+                                    "text": symptom.strip(),
+                                    "category": "Symptom",
+                                    "author": st.session_state.username,
+                                    "timestamp": pd.Timestamp.now()
+                                }])], ignore_index=True)
+                        
+                        if medicine_str:
+                            for med in medicine_str.split(","):
+                                df = pd.concat([df, pd.DataFrame([{
+                                    "text": med.strip(),
+                                    "category": "Medicine",
+                                    "author": st.session_state.username,
+                                    "timestamp": pd.Timestamp.now()
+                                }])], ignore_index=True)
+                        
+                    else:
+                        df = pd.DataFrame([new_record])
 
-                # Save full text as main entry
-                main_record = {
-                    "text": new_case_text,
-                    "category": final_category,
-                    "diseases": disease_str,
-                    "symptoms": symptom_str,
-                    "medicines": medicine_str,
-                    "feedback": dev_feedback,
-                    "author": st.session_state.username,
-                    "timestamp": pd.Timestamp.now()
-                }
-                new_records.append(main_record)
-
-                # Add sub-entries if applicable
-                for disease in disease_str.split(","):
-                    disease = disease.strip()
-                    if disease:
-                        new_records.append({
-                            "text": disease,
-                            "category": "Disease",
-                            "author": st.session_state.username,
-                            "timestamp": pd.Timestamp.now()
-                        })
-
-                for symptom in symptom_str.split(","):
-                    symptom = symptom.strip()
-                    if symptom:
-                        new_records.append({
-                            "text": symptom,
-                            "category": "Symptom",
-                            "author": st.session_state.username,
-                            "timestamp": pd.Timestamp.now()
-                        })
-
-                for med in medicine_str.split(","):
-                    med = med.strip()
-                    if med:
-                        new_records.append({
-                            "text": med,
-                            "category": "Medicine",
-                            "author": st.session_state.username,
-                            "timestamp": pd.Timestamp.now()
-                        })
-
-                # Save to CSV
-                csv_file = "classified_data.csv"
-                if os.path.exists(csv_file):
-                    df = pd.read_csv(csv_file)
-                    df = pd.concat([df, pd.DataFrame(new_records)], ignore_index=True)
-                else:
-                    df = pd.DataFrame(new_records)
-
-                df.to_csv(csv_file, index=False)
-                st.success("✅ Saved successfully!")
-                st.session_state.expert_input = ""
-        else:
-            st.warning("⚠️ Please enter a case note before analysis.")
+                    df.to_csv(csv_file, index=False)
+                    st.success("✅ Case note saved successfully!")
+                    st.session_state.expert_input = ""
+            else:
+                st.warning("⚠️ Please enter a case note before analysis.")
