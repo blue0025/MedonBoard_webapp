@@ -189,37 +189,7 @@ else:
                         df = pd.read_csv(csv_file)
                         df = pd.concat([df, pd.DataFrame([new_record])], ignore_index=True)
                         
-                        # Add individual entities as well
-                        if disease_str:
-                            for disease in disease_str.split(","):
-                                df = pd.concat([df, pd.DataFrame([{
-                                    "text": disease.strip(),
-                                    "category": "Disease",
-                                    "author": st.session_state.username,
-                                    "timestamp": pd.Timestamp.now()
-                                }])], ignore_index=True)
                         
-                        if symptom_str:
-                            for symptom in symptom_str.split(","):
-                                df = pd.concat([df, pd.DataFrame([{
-                                    "text": symptom.strip(),
-                                    "category": "Symptom",
-                                    "author": st.session_state.username,
-                                    "timestamp": pd.Timestamp.now()
-                                }])], ignore_index=True)
-                        
-                        if medicine_str:
-                            for med in medicine_str.split(","):
-                                df = pd.concat([df, pd.DataFrame([{
-                                    "text": med.strip(),
-                                    "category": "Medicine",
-                                    "author": st.session_state.username,
-                                    "timestamp": pd.Timestamp.now()
-                                }])], ignore_index=True)
-                        
-                    else:
-                        df = pd.DataFrame([new_record])
-
                     df.to_csv(csv_file, index=False)
                     st.success("✅ Case note saved successfully!")
                     st.session_state.expert_input = ""
